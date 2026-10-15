@@ -1,0 +1,538 @@
+from pathlib import Path
+from html import escape
+from IPython.display import HTML, display
+
+# Set this to True to download index.html after displaying it.
+DOWNLOAD_HTML = False
+
+# Keep the r before the triple quotes. It preserves JavaScript
+# backslashes inside this Python string.
+WEBSITE_HTML = r"""<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Singapore Property &amp; MRT Explorer | DAO2702</title>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<style>
+:root{--ink:#182638;--muted:#607286;--line:#e3e9ef;--paper:#f6f8fb;--cyan:#00cddd;--pink:#f22c84}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);background:var(--paper)}header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;background:#fff;border-bottom:1px solid var(--line);gap:12px}h1{font-size:21px;letter-spacing:-.6px;margin:0}header p{margin:4px 0 0;color:var(--muted);font-size:12px}.tag{font-size:11px;color:#277867;background:#e7f6f1;padding:7px 10px;border-radius:999px;white-space:nowrap}.layout{display:grid;grid-template-columns:290px minmax(0,1fr);height:calc(100vh - 85px);min-height:620px}.sidebar{background:white;border-right:1px solid var(--line);padding:21px 19px;overflow-y:auto}.heading{font-size:11px;letter-spacing:1.5px;font-weight:800;color:#8493a3;text-transform:uppercase;margin:21px 0 12px}.heading:first-child{margin-top:0}.legend{display:flex;align-items:center;gap:9px;margin:11px 0;font-size:13px}.dot{width:12px;height:12px;border-radius:50%;border:1px solid #445;flex:none}.swatch{width:13px;height:13px;border-radius:3px;flex:none}.filter{display:flex;gap:8px;align-items:center;font-size:13px;margin:12px 0;cursor:pointer}.filter input{accent-color:#182638}select,input[type=search]{padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);width:100%;font:inherit;font-size:13px}button{cursor:pointer;background:#19283a;color:white;padding:11px;border:none;border-radius:8px;font-weight:700;width:100%}.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}.stat{padding:12px 10px;border-radius:10px;background:#f5f7fa}.stat b{font-size:22px;display:block}.stat span{font-size:11px;color:var(--muted)}.notice{background:#fff8e9;border:1px solid #f3e0b7;border-radius:9px;padding:12px;color:#71521f;font-size:12px;line-height:1.5;margin-top:20px}.small{font-size:11px;color:var(--muted);line-height:1.6}.map-area{position:relative;min-height:520px}#map{width:100%;height:100%;background:#f7f9fb}.floating{position:absolute;bottom:20px;left:20px;z-index:600;background:rgba(255,255,255,.97);padding:12px 15px;border-radius:9px;box-shadow:0 4px 18px #2333;font-size:12px;max-width:320px}.popup{font-family:inherit;line-height:1.7;min-width:210px}.popup strong{font-size:15px}.popup .sub{font-size:11px;color:#718296;margin:0 0 8px}.walk-panel{margin-top:10px;border-top:1px solid #dde5ec;padding-top:9px}.walk-panel button{font-size:12px;padding:8px;margin-top:5px}.walk-result{font-size:12px;line-height:1.5;margin-top:6px}.walk-panel .hint{color:#66798c;font-size:11px;line-height:1.4}.popup .note{font-size:11px;color:#92743f;margin-top:9px;border-top:1px solid #ddd;padding-top:7px}.mrt-icon{background:transparent;border:0}.mrt-badge{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:#191f29;border:1.5px solid #fff;box-shadow:0 1px 5px #0006}.mrt-badge svg{height:16px;width:16px;display:block}.leaflet-popup-content-wrapper{border-radius:12px}.status{color:#486d81}.error{color:#ac2943}.searchrow{margin-top:12px}.search-actions{display:flex;gap:7px;margin-top:7px}.search-actions button{width:auto;flex:1}.search-status{font-size:11px;color:#607286;margin-top:6px;line-height:1.4}.search-pin{background:transparent;border:0}.key{font-size:11px;color:#607286;margin-top:8px}@media(max-width:780px){header{padding:14px 16px}h1{font-size:17px}.tag{display:none}.layout{display:flex;flex-direction:column;height:auto}.sidebar{padding:14px 16px;max-height:none}.heading{margin:13px 0 7px}.sidebar .filters{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.sidebar .filters .heading{grid-column:1/-1}.map-area{height:66vh;min-height:460px}.floating{left:10px;bottom:10px;max-width:250px}.stats{grid-template-columns:1fr 1fr}}
+
+.place-matches{display:grid;gap:6px;margin-top:8px;max-height:220px;overflow-y:auto}
+.place-match{background:#f5f7fa;color:#182638;text-align:left;font-size:12px;font-weight:500;border:1px solid #e3e9ef;line-height:1.4}
+.place-match:hover,.place-match:focus{background:#e8eff6;outline:2px solid #b6c8d9}
+.place-match small{display:block;color:#607286;margin-top:3px}
+button:disabled{opacity:.6;cursor:wait}
+.leaflet-control-attribution{max-width:calc(100vw - 40px);white-space:normal;font-size:10px}
+
+/* Click-to-walk controls keep coordinate fields out of the interface. */
+[hidden]{display:none!important}
+.walking-card{border:1px solid #dbe6f2;border-radius:12px;padding:12px;background:#f8fbff}
+.walking-card .filter{margin-top:0;font-size:12px}.walk-result-main{margin:14px 0;line-height:1.5;font-size:12px;overflow-wrap:anywhere}
+.walk-copy{font-size:12px;line-height:1.5;color:#536b80;margin:8px 0}
+.secondary{background:#edf2f7;color:#233a50;border:1px solid #d8e2ec;font-size:12px;margin-top:7px}
+#pickProperty{background:#1267d5;line-height:1.4}#pickProperty[aria-pressed=true]{background:#24446c}
+.route-eyebrow{display:block;color:#60778c;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:750;margin-bottom:5px}
+.route-station{font-size:18px;line-height:1.3;margin:0 0 7px;overflow-wrap:anywhere}.exit-label{display:inline-block;border-radius:5px;background:#e1ecfc;color:#164e94;padding:3px 8px;font-size:12px;font-weight:750}
+.route-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:13px 0}.route-metrics>div{background:white;border:1px solid #dbe6f2;padding:10px 6px;border-radius:8px}.route-metrics b{display:block;font-size:20px;color:#155db5;line-height:1.3}.route-metrics span{display:block;color:#60778c;font-size:10px;margin-top:4px}
+.route-link{display:inline-block;font-size:12px;font-weight:600;line-height:1.5;color:#1256a3;margin:3px 0}.route-details{font-size:11px;color:#536b80;line-height:1.55;margin-top:12px}.route-details summary,.service-details summary{cursor:pointer;font-size:11px;font-weight:650}.service-details{margin-top:10px;color:#607286}
+progress{width:100%;height:8px;margin:8px 0;accent-color:#1267d5}
+.floating{max-width:365px;width:calc(100% - 40px);max-height:45%;overflow-y:auto;bottom:28px;line-height:1.5}.map-station{display:block;font-size:15px;line-height:1.3}.map-metrics{font-weight:800;color:#155db5;font-size:21px;margin-top:6px}.map-metrics span{font-size:12px;font-weight:500}.route-actions{display:flex;gap:12px;align-items:center}.route-actions button{width:auto;flex:1;font-size:11px;padding:8px}.route-actions a{font-size:12px;color:#1256a3}
+.pick-banner{position:absolute;left:60px;right:15px;top:12px;z-index:650;background:#192d49;color:white;border:2px solid white;border-radius:10px;padding:11px 13px;box-shadow:0 2px 12px #0003;display:flex;gap:12px;align-items:center;font-size:13px;line-height:1.5}.pick-banner span{flex:1}.pick-banner button{width:auto;margin:0;flex:none}
+.picking-property,.picking-property .leaflet-interactive{cursor:crosshair!important}.picking-property .leaflet-marker-pane *,.picking-property .leaflet-shadow-pane *,.picking-property .leaflet-overlay-pane{pointer-events:none!important}
+.home-map-icon{background:transparent;border:0}.home-map-icon svg{display:block;filter:drop-shadow(0 2px 3px #0005)}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #4489ed;outline-offset:2px}
+@media(max-width:780px){.floating{left:10px;bottom:30px;width:calc(100% - 20px);max-width:340px;max-height:41%;padding:10px 12px}.pick-banner{left:52px;right:8px;top:10px;font-size:11px;padding:8px;gap:6px}.map-metrics{font-size:19px}.route-metrics b{font-size:22px}.walking-card{margin-top:8px}}
+</style></head><body>
+<header><div><h1>Singapore Property &amp; MRT Explorer</h1><p>DAO2702 · Property transactions, tenure and MRT exit locations</p></div><div class="tag">Interactive map · No API key</div></header>
+<div class="layout"><aside class="sidebar"><div class="heading">Overview</div><div class="stats"><div class="stat"><b id="propertyCount">–</b><span>Property markers</span></div><div class="stat"><b id="mrtCount">–</b><span>MRT / LRT exits</span></div></div><div class="heading">Property tenure</div><div class="filters"><label class="filter"><input checked="" id="lease" type="checkbox"/><span class="dot" style="background:var(--cyan)"></span> 99-year leasehold</label><label class="filter"><input checked="" id="freehold" type="checkbox"/><span class="dot" style="background:var(--pink)"></span> Freehold</label><label class="filter"><input checked="" id="mrt" type="checkbox"/> <span class="mrt-badge" style="width:19px;height:19px;flex:none;border-radius:5px"><svg aria-hidden="true" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><rect height="15" rx="3" width="14" x="5" y="3"></rect><path d="M5 10h14M8 21l2-3m6 0 2 3"></path><circle cx="9" cy="14" fill="white" r="1" stroke="none"></circle><circle cx="15" cy="14" fill="white" r="1" stroke="none"></circle></svg></span> MRT station exits</label><label class="filter"><input checked="" id="areas" type="checkbox"/> Planning area boundaries</label></div><div class="heading">Market segments</div><div class="legend"><span class="swatch" style="background:#6b2c7e"></span> Core Central Region (CCR)</div><div class="legend"><span class="swatch" style="background:#c24e22"></span> Rest of Central Region (RCR)</div><div class="legend"><span class="swatch" style="background:#23786f"></span> Outside Central Region (OCR)</div><div class="heading">Filter properties</div><select id="segment"><option value="ALL">All market segments</option><option>CCR</option><option>RCR</option><option>OCR</option></select><div class="searchrow"><input id="search" placeholder="Search property name or street" type="search"/></div><div class="search-actions"><button id="zoomProperty" type="button">Zoom to matching property</button></div><div class="heading">Find a location</div><input aria-label="Search a location in Singapore" id="placeSearch" placeholder="MRT station, property address or landmark" type="search"/><div class="search-actions"><button id="findPlace" type="button">Search and zoom</button><button id="clearPlace" type="button">Clear pin</button></div><div aria-live="polite" class="search-status" id="placeStatus">Search your address to zoom in, then use "Click my property" to select the building entrance. No coordinates to type.</div><div aria-label="Matching locations" class="place-matches" id="placeMatches"></div><div class="key">Shows up to 1,000 records per tenure, matching the original Colab sample.</div><div class="heading">Walk to the nearest MRT exit</div>
+<section aria-label="Choose your property and find a walking route" class="walking-card">
+<label class="filter"><input id="roadmap" type="checkbox"/> Show streets (OneMap, no key)</label>
+<button aria-pressed="false" disabled="" id="pickProperty" type="button">Click my property</button>
+<div aria-busy="false" aria-live="polite" class="walk-result-main" id="walkResult" role="status"></div>
+<button class="secondary" id="clearWalk" type="button">Clear route &amp; restore property dots</button>
+</section>
+<p class="small">Only the building you select is used for walking calculations. The original coloured dots are illustrative.</p>
+<details class="service-details"><summary>Services &amp; privacy</summary>
+<p class="small">OneMap street background; local MRT data / Photon address search; Valhalla pedestrian routing. No account or API key is entered. Public services can be unavailable or rate-limited. Your selected map point and candidate exits are sent to the routing service only when you request a route. Route caching stays in this browser tab.</p>
+<p class="small"><a href="https://fossgis.de/arbeitsgruppen/osm-server/nutzungsbedingungen/" rel="noopener noreferrer" target="_blank">Routing service terms</a> · <a href="https://valhalla.github.io/valhalla/api/route/api-reference/" rel="noopener noreferrer" target="_blank">Routing documentation</a></p></details>
+<div class="heading">Map tools</div><button id="reset">Reset map &amp; filters</button><div class="notice"><b>Important:</b> Property dots are randomly positioned near approximate planning-area centroids, not actual building locations. Do not use them to measure MRT walking distance or identify a specific property address. MRT exit markers use the supplied geographic coordinates.</div><p aria-live="polite" class="small" id="status">Loading data from GitHub…</p><p class="small">Data: course GitHub repository · Planning-area segment groupings are illustrative and may differ from official URA boundaries.</p></aside><main class="map-area"><div aria-label="Interactive Singapore property and MRT map" id="map"></div><div class="pick-banner" hidden="" id="pickBanner"><span id="pickHint" role="status">Click your building entrance.</span><button class="secondary" data-cancel-walk="" type="button">Cancel</button></div><div aria-live="polite" class="floating" id="mapMessage"></div></main></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script>
+const BASE='https://raw.githubusercontent.com/hawflakess/DAO2702-Group-Assignment/main/';
+const map=L.map('map',{preferCanvas:true,zoomControl:true,attributionControl:true}).setView([1.3521,103.8198],11);
+// No map tiles: consistent with the user's tile-free Colab design.
+// OneMap basemap tiles are public; its authenticated Search API is NOT used.
+// Preserve the required OneMap logo and attribution.
+const streetTiles=L.tileLayer('https://www.onemap.gov.sg/maps/tiles/Default/{z}/{x}/{y}.png',{
+  minZoom:11,maxZoom:19,maxNativeZoom:19,
+  bounds:[[1.144,103.535],[1.494,104.502]],noWrap:true,
+  attribution:'<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" alt="OneMap" style="height:20px;width:20px;vertical-align:middle"> <a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a> &copy; contributors | <a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>'
+});
+// Search/routing attribution remains visible, including in tile-free mode.
+map.attributionControl.addAttribution('Search/routes: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors');
+let tileWarningShown=false;
+streetTiles.on('tileerror',()=>{
+  if(!tileWarningShown){
+    tileWarningShown=true;
+    setStatus('OneMap background could not load. No API key is required for these tiles; check the network or turn off streets to keep the data layers visible.',true);
+  }
+});
+const walkOverlay=L.layerGroup().addTo(map);
+let exitPoints=[];
+const boundaries=L.layerGroup().addTo(map), leaseLayer=L.layerGroup().addTo(map), freeLayer=L.layerGroup().addTo(map), mrtLayer=L.layerGroup().addTo(map);
+const colors={CCR:'#6b2c7e',RCR:'#c24e22',OCR:'#23786f'};
+const ccr=new Set(['DOWNTOWN CORE','MUSEUM','NEWTON','ORCHARD','RIVER VALLEY','SINGAPORE RIVER','SOUTHERN ISLANDS','TANGLIN','OUTRAM','ROCHOR']);
+const rcr=new Set(['BISHAN','BUKIT MERAH','GEYLANG','KALLANG','MARINE PARADE','NOVENA','QUEENSTOWN','TOA PAYOH','BUKIT TIMAH','CLEMENTI']);
+const districtToPA={1:'DOWNTOWN CORE',2:'DOWNTOWN CORE',3:'QUEENSTOWN',4:'BUKIT MERAH',5:'PASIR PANJANG',6:'MUSEUM',7:'ROCHOR',8:'KALLANG',9:'ORCHARD',10:'TANGLIN',11:'NOVENA',12:'TOA PAYOH',13:'GEYLANG',14:'BEDOK',15:'MARINE PARADE',16:'BEDOK',17:'CHANGI',18:'PASIR RIS',19:'PUNGGOL',20:'ANG MO KIO',21:'CLEMENTI',22:'JURONG EAST',23:'CHOA CHU KANG',25:'WOODLANDS',26:'SEMBAWANG',27:'YISHUN',28:'SENGKANG'};
+const segmentOf=n=>ccr.has(n)?'CCR':rcr.has(n)?'RCR':'OCR';
+const esc=s=>String(s??'Unknown').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+document.getElementById('roadmap').addEventListener('change',e=>{if(e.target.checked)streetTiles.addTo(map);else map.removeLayer(streetTiles)});
+const setStatus=(s,error=false)=>{let el=document.getElementById('status');el.textContent=s;el.className='small '+(error?'error':'status')};
+let allRecords=[],paCenters={},drawnCount=0;
+const searchResultLayer=L.layerGroup().addTo(map);
+let lastPropertyMarkers=[];
+function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function jitter(seed,scale){return (hash(seed)/4294967295-.5)*2*scale}
+function markerFor(r){
+  const pa=districtToPA[Number(r.district)],pt=paCenters[pa];if(!pt)return null;
+  const lat=pt.lat+jitter('lat'+r._index,0.015),lng=pt.lng+jitter('lng'+r._index,0.02);
+  const is99=r.tenure==='99 years',seg=(r.segment||segmentOf(pa)).toUpperCase(),price=Number(r.price);
+  const popup=`<div class="popup"><strong>${esc(r.project)}</strong><div class="sub">${esc(r.street)}</div><div><b>Segment:</b> ${esc(seg)}</div><div><b>Tenure:</b> ${esc(r.tenure)}</div><div><b>Price:</b> ${Number.isFinite(price)?'S$'+price.toLocaleString('en-SG'):'Unknown'}</div><div><b>Area:</b> ${esc(r.area)} sq ft</div><div><b>Sale type:</b> ${esc(r.sale)}</div><div><b>Transaction:</b> ${esc(r.date)}</div><div class="note">Illustrative dot only - not the actual property location.</div><div class="walk-panel"><b>Walk to the nearest MRT exit</b><div class="hint">Click below, then click this property's actual building entrance on the street map. Your walking result appears automatically.</div><button class="pick-building" type="button">Click my property's building on the map</button></div></div>`;
+  const marker=L.circleMarker([lat,lng],{radius:5,color:'#333',weight:.6,fillColor:is99?'#00e5ff':'#ff007f',fillOpacity:.9}).bindTooltip(esc(r.project)).bindPopup(popup,{maxWidth:365});
+  marker.propertyRecord=r;return marker;
+}
+function renderProperties(){leaseLayer.clearLayers();freeLayer.clearLayers();let term=document.getElementById('search').value.toLowerCase().trim(),seg=document.getElementById('segment').value;drawnCount=0;lastPropertyMarkers=[];for(const r of allRecords){if(seg!=='ALL'&&String(r.segment).toUpperCase()!==seg)continue;if(term&&!`${r.project} ${r.street}`.toLowerCase().includes(term))continue;let m=markerFor(r);if(m){m.addTo(r.tenure==='99 years'?leaseLayer:freeLayer);drawnCount++;lastPropertyMarkers.push({marker:m,record:r});}}updateLayers();}
+function updateLayers(){const states=[['lease',leaseLayer],['freehold',freeLayer],['mrt',mrtLayer],['areas',boundaries]];for(const [id,layer] of states){if(document.getElementById(id).checked){if(!map.hasLayer(layer))layer.addTo(map)}else map.removeLayer(layer)}let count=(document.getElementById('lease').checked?leaseLayer.getLayers().length:0)+(document.getElementById('freehold').checked?freeLayer.getLayers().length:0);document.getElementById('propertyCount').textContent=count.toLocaleString();}
+for(const id of ['lease','freehold','mrt','areas'])document.getElementById(id).addEventListener('change',updateLayers);
+document.getElementById('segment').addEventListener('change',renderProperties);
+const propertySearch=document.getElementById('search');
+propertySearch.addEventListener('input',renderProperties);
+function zoomToProperty(){
+ const term=propertySearch.value.trim();
+ const matches=lastPropertyMarkers.filter(o=>map.hasLayer(o.marker));
+ if(!term){setStatus('Type a property name or street to find its illustrative markers.');return;}
+ if(!matches.length){setStatus('No visible matching property. Check the filters and search spelling.');return;}
+ if(matches.length===1){map.flyTo(matches[0].marker.getLatLng(),16,{duration:0.8});matches[0].marker.openPopup();}
+ else {const b=L.latLngBounds(matches.map(o=>o.marker.getLatLng()));map.flyToBounds(b,{padding:[65,65],maxZoom:16,duration:0.8});}
+ setStatus('Zoomed to '+matches.length+' matching illustrative property marker'+(matches.length===1?'':'s')+'. These are not actual addresses.');
+}
+document.getElementById('zoomProperty').addEventListener('click',zoomToProperty);
+propertySearch.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();zoomToProperty();}});
+const placeInput=document.getElementById('placeSearch');
+const placeStatus=document.getElementById('placeStatus');
+// Public Photon requests are user-triggered, cached and spaced apart.
+// No Nominatim or authenticated OneMap Search requests are made.
+const PHOTON_ENDPOINT='https://photon.komoot.io/api/';
+const placeMatches=document.getElementById('placeMatches');
+const placeCache=new Map();
+let placeRequestId=0,placeController=null,lastPlaceRequestAt=0;
+const singaporePoint=(lat,lon)=>Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=1.1&&lat<=1.55&&lon>=103.55&&lon<=104.2;
+function stationKey(text){
+  return String(text).toUpperCase().replace(/\([^)]*\)/g,' ').replace(/\b(MRT|LRT|STATION)\b/g,' ').replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+}
+function localLocations(query){
+  const exitMatch=query.toUpperCase().match(/\bEXIT\s+([A-Z0-9]+)\b/);
+  const key=stationKey(query.replace(/\bEXIT\s+[A-Z0-9]+\b/ig,' '));
+  if(key){
+    const exits=exitPoints.filter(p=>stationKey(p.name)===key&&(!exitMatch||String(p.code).toUpperCase()===exitMatch[1]));
+    if(exits.length){
+      return exits.sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true})).slice(0,8).map(p=>({
+        lat:p.lat,lon:p.lon,display_name:p.name+' - Exit '+p.code,
+        source:'Supplied MRT exit dataset (no geocoding request)',zoom:17
+      }));
+    }
+  }
+  const area=Object.keys(paCenters).find(n=>n.toUpperCase()===query.toUpperCase().trim());
+  if(area){const p=paCenters[area];return [{lat:p.lat,lon:p.lng,display_name:area+' planning area',source:'Approximate area centre, not a building address',zoom:14}];}
+  return [];
+}
+function showLocation(match){
+  searchResultLayer.clearLayers();
+  const marker=L.marker([match.lat,match.lon],{title:'Searched location'}).bindPopup(
+    '<b>'+esc(match.display_name)+'</b><div>'+esc(match.source)+'</div><small>Check the address, then select the building entrance.</small><button type="button" data-start-pick>Click my property on the map</button>'
+  );
+  marker.addTo(searchResultLayer);
+  document.getElementById('roadmap').checked=true;
+  streetTiles.addTo(map);
+  map.flyTo([match.lat,match.lon],match.zoom||17,{duration:0.9});
+  marker.openPopup();
+  placeStatus.textContent='Zoomed to: '+match.display_name;
+  if(window.matchMedia&&window.matchMedia('(max-width:780px)').matches){
+    document.getElementById('map').scrollIntoView({behavior:'smooth',block:'center'});
+  }
+}
+function showLocationChoices(matches){
+  placeMatches.replaceChildren();
+  if(matches.length>1){
+    for(const match of matches){
+      const button=document.createElement('button');
+      button.type='button';button.className='place-match';
+      button.appendChild(document.createTextNode(match.display_name));
+      const note=document.createElement('small');note.textContent=match.source;button.appendChild(note);
+      button.addEventListener('click',()=>showLocation(match));placeMatches.appendChild(button);
+    }
+  }
+  showLocation(matches[0]);
+}
+function cancelLocationSearch(){
+  placeRequestId++;
+  if(placeController){placeController.abort();placeController=null;}
+  document.getElementById('findPlace').disabled=false;
+  placeMatches.replaceChildren();
+}
+async function zoomToLocation(){
+  const q=placeInput.value.trim();
+  if(!q){placeStatus.textContent='Enter a station, property address or landmark.';return;}
+  cancelLocationSearch();
+  const requestId=placeRequestId;
+  const btn=document.getElementById('findPlace');btn.disabled=true;
+  try{
+    const local=localLocations(q);
+    if(local.length){showLocationChoices(local);return;}
+    const cacheKey=q.toLowerCase();
+    if(placeCache.has(cacheKey)){showLocationChoices(placeCache.get(cacheKey));return;}
+    const delay=Math.max(0,1100-(Date.now()-lastPlaceRequestAt));
+    if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
+    if(requestId!==placeRequestId)return;
+    lastPlaceRequestAt=Date.now();
+    placeStatus.textContent='Searching Photon (no API key needed)...';
+    const params=new URLSearchParams({q,limit:'5',lang:'en',bbox:'103.55,1.10,104.20,1.55',lat:'1.3521',lon:'103.8198'});
+    const controller=new AbortController();placeController=controller;
+    const timeout=setTimeout(()=>controller.abort(),15000);
+    let data;
+    try{
+      const response=await fetch(PHOTON_ENDPOINT+'?'+params,{signal:controller.signal,headers:{Accept:'application/json'}});
+      if(!response.ok)throw Error('Photon is unavailable (HTTP '+response.status+').');
+      data=await response.json();
+    }finally{clearTimeout(timeout);if(placeController===controller)placeController=null;}
+    if(requestId!==placeRequestId)return;
+    const matches=[];
+    for(const feature of data.features||[]){
+      if(feature.geometry?.type!=='Point')continue;
+      const [lon,lat]=feature.geometry.coordinates.map(Number);
+      if(!singaporePoint(lat,lon))continue;
+      const p=feature.properties||{};
+      if(p.countrycode&&String(p.countrycode).toUpperCase()!=='SG')continue;
+      const street=[p.housenumber,p.street].filter(Boolean).join(' ');
+      const name=[...new Set([p.name,street,p.postcode,p.city,p.country].filter(Boolean))].join(', ');
+      matches.push({lat,lon,display_name:name||q,source:'Photon / OpenStreetMap - check the address before using it',zoom:17});
+    }
+    if(!matches.length){placeStatus.textContent='No matching location found. Try the full address or a known MRT station, or zoom in and select your building on the map.';return;}
+    if(placeCache.size>=100)placeCache.delete(placeCache.keys().next().value);
+    placeCache.set(cacheKey,matches);showLocationChoices(matches);
+  }catch(err){
+    if(requestId===placeRequestId){
+      const message=err.name==='AbortError'?'The search service timed out.':err.message;
+      placeStatus.textContent=message+' No API key is requested. You can still search a loaded MRT station or select your building directly on the map.';
+    }
+  }finally{if(requestId===placeRequestId)btn.disabled=false;}
+}
+document.getElementById('findPlace').addEventListener('click',zoomToLocation);
+placeInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();zoomToLocation();}});
+document.getElementById('clearPlace').addEventListener('click',()=>{cancelLocationSearch();searchResultLayer.clearLayers();placeInput.value='';placeStatus.textContent='Search pin cleared.';});
+document.getElementById('reset').addEventListener('click',()=>{
+ resetWalking();for(const id of ['lease','freehold','mrt','areas'])document.getElementById(id).checked=true;
+ document.getElementById('segment').value='ALL';document.getElementById('search').value='';
+ document.getElementById('roadmap').checked=false;map.removeLayer(streetTiles);
+ searchResultLayer.clearLayers();cancelLocationSearch();placeInput.value='';
+ placeStatus.textContent='Search an address or landmark to zoom in.';renderProperties();map.fitBounds([[1.15,103.59],[1.48,104.11]]);
+});
+async function fetchChecked(file){let resp=await fetch(BASE+file);if(!resp.ok)throw Error(`${file}: HTTP ${resp.status}`);return file.endsWith('.csv')?resp.text():resp.json()}
+function sample(rows,limit){if(rows.length<=limit)return rows;return [...rows].map((x,i)=>({x,sort:hash(`${x.project}|${x.street}|${x.price}|${i}`)})).sort((a,b)=>a.sort-b.sort).slice(0,limit).map(p=>p.x)}
+async function init(){try{const [csv,mrtGeo,planGeo]=await Promise.all([fetchChecked('properties2025_cleaned.csv'),fetchChecked('LTAMRTStationExitGEOJSON.geojson'),fetchChecked('MasterPlan2019PlanningAreaBoundaryNoSea.geojson')]);setStatus('Preparing map…');const plan=L.geoJSON(planGeo,{style:f=>({color:'#fff',weight:1.3,fillColor:colors[segmentOf(String(f.properties.PLN_AREA_N||'').toUpperCase())],fillOpacity:.68}),onEachFeature:(f,l)=>{let n=String(f.properties.PLN_AREA_N||'Unknown').toUpperCase();l.bindTooltip(`${esc(n)} · ${segmentOf(n)}`);let bounds=l.getBounds();if(bounds.isValid())paCenters[n]=bounds.getCenter();}}).addTo(boundaries);
+// Use the centre of projected bounds as an illustrative area anchor, never geocoded addresses.
+const parser=Papa.parse(csv,{header:true,skipEmptyLines:true});let eligible=parser.data.filter(r=>['99 years','freehold'].includes(String(r.tenure).trim().toLowerCase()));let a=sample(eligible.filter(r=>String(r.tenure).trim().toLowerCase()==='99 years'),1000),b=sample(eligible.filter(r=>String(r.tenure).trim().toLowerCase()==='freehold'),1000);allRecords=[...a,...b].map((r,i)=>({...r,tenure:String(r.tenure).trim().toLowerCase(),_index:i,segment:(r.segment||segmentOf(districtToPA[Number(r.district)]||'')).toUpperCase()}));
+// Embedded MRT train pictogram; no extra image files or API keys required.
+const mrtIcon=L.divIcon({
+ className:'mrt-icon',
+ html:`<span class="mrt-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 10h14M8 21l2-3m6 0 2 3"/><circle cx="9" cy="14" r="1" fill="white" stroke="none"/><circle cx="15" cy="14" r="1" fill="white" stroke="none"/></svg></span>`,
+ iconSize:[22,22],iconAnchor:[11,11],popupAnchor:[0,-11]
+});
+let count=0;L.geoJSON(mrtGeo,{pointToLayer:(f,ll)=>L.marker(ll,{icon:mrtIcon}),onEachFeature:(f,l)=>{let p=f.properties||{};let n=p.STATION_NA||'Unknown';let code=String(p.EXIT_CODE||'Unknown').replace(/^exit\s*/i,'').trim();const ll=l.getLatLng();exitPoints.push({lat:ll.lat,lon:ll.lng,name:String(n),code:String(code)});l.bindTooltip(`${esc(n)} · Exit ${esc(code)}`).bindPopup(`<div class="popup"><strong>${esc(n)}</strong><div>Exit code: ${esc(code)}</div><div class="sub">MRT station exit</div></div>`);count++;}}).addTo(mrtLayer);document.getElementById('mrtCount').textContent=count.toLocaleString();renderProperties();if(plan.getBounds().isValid())map.fitBounds(plan.getBounds(),{padding:[14,14]});document.getElementById('pickProperty').disabled=!exitPoints.length;setStatus('Map ready - choose a building to calculate walking distances.');}catch(e){setStatus('Unable to load GitHub datasets. Check that all three filenames exist in the repository and try opening the site through GitHub Pages. Details: '+e.message,true);console.error(e)}}
+// Click-to-walk: the original transaction dots are illustrative and NEVER
+// provide a routing origin. Only an explicit building selection is used.
+const ROUTE_ENDPOINT='https://valhalla1.openstreetmap.de/route';
+const MAX_NEARBY_EXITS=6;
+const MAX_SNAP_METERS=80;
+const ROUTE_REQUEST_GAP_MS=1100;
+const routeCache=new Map();
+let routeSequence=0,activeRoute=null,lastRouteStarted=0,routeQueue=Promise.resolve();
+let pickingProperty=false,propertyLabel='My selected property',selectedOrigin=null,savedOverview=null;
+const walkResult=document.getElementById('walkResult');
+const mapMessage=document.getElementById('mapMessage');
+const pickBanner=document.getElementById('pickBanner');
+const defaultWalkHelp='Search your address or zoom in, click "Click my property", then click your building entrance. The walking result appears automatically.';
+
+function birdDistance(a,b){
+  const r=6371,x=(b.lat-a.lat)*Math.PI/180,y=(b.lon-a.lon)*Math.PI/180;
+  const z=Math.min(1,Math.max(0,Math.sin(x/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(y/2)**2));
+  return 2*r*Math.atan2(Math.sqrt(z),Math.sqrt(1-z));
+}
+function decodePolyline(str,precision=6){
+  if(typeof str!=='string'||!str.length)throw Error('The walking service did not return a route line.');
+  const coords=[],factor=10**precision;let index=0,lat=0,lon=0;
+  while(index<str.length){
+    const values=[];
+    for(let v=0;v<2;v++){
+      let result=0,shift=0,b;
+      do{
+        if(index>=str.length||shift>30)throw Error('The walking service returned an invalid route line.');
+        b=str.charCodeAt(index++)-63;
+        if(b<0||b>63)throw Error('The walking service returned an invalid route line.');
+        result|=(b&31)<<shift;shift+=5;
+      }while(b>=32);
+      values.push(result&1?~(result>>1):result>>1);
+    }
+    lat+=values[0];lon+=values[1];coords.push([lat/factor,lon/factor]);
+  }
+  if(coords.length<2||coords.some(p=>!singaporePoint(p[0],p[1])))throw Error('No valid Singapore walking route was returned.');
+  return coords;
+}
+function abortError(){return new DOMException('Cancelled','AbortError');}
+function checkAbort(signal){if(signal.aborted)throw abortError();}
+function waitFor(ms,signal){
+  checkAbort(signal);
+  return new Promise((resolve,reject)=>{
+    const cancelled=()=>{clearTimeout(timer);signal.removeEventListener('abort',cancelled);reject(abortError());};
+    const timer=setTimeout(()=>{signal.removeEventListener('abort',cancelled);resolve();},ms);
+    signal.addEventListener('abort',cancelled,{once:true});
+  });
+}
+async function claimRouteSlot(signal){
+  // A shared queue also spaces requests when an old calculation is cancelled.
+  const previous=routeQueue;let release;
+  routeQueue=new Promise(resolve=>{release=resolve;});
+  await previous;
+  try{
+    checkAbort(signal);
+    await waitFor(Math.max(0,ROUTE_REQUEST_GAP_MS-(Date.now()-lastRouteStarted)),signal);
+    checkAbort(signal);lastRouteStarted=Date.now();
+  }finally{release();}
+}
+async function pedestrianRoute(from,to,signal){
+  checkAbort(signal);
+  const key=[from.lat,from.lon,to.lat,to.lon].map(n=>n.toFixed(6)).join(',');
+  if(routeCache.has(key))return routeCache.get(key);
+  await claimRouteSlot(signal);
+  const payload={
+    locations:[from,to].map(p=>({lat:p.lat,lon:p.lon,search_cutoff:MAX_SNAP_METERS})),
+    costing:'pedestrian',costing_options:{pedestrian:{shortest:true,walking_speed:5.1}},
+    units:'kilometers',directions_options:{units:'kilometers'},shape_format:'polyline6'
+  };
+  const controller=new AbortController();let timedOut=false;
+  const cancel=()=>controller.abort();signal.addEventListener('abort',cancel,{once:true});
+  const timer=setTimeout(()=>{timedOut=true;controller.abort();},15000);
+  let data;
+  try{
+    // A simple GET avoids a custom-header CORS preflight. No token is requested.
+    const response=await fetch(ROUTE_ENDPOINT+'?json='+encodeURIComponent(JSON.stringify(payload)),{
+      signal:controller.signal,headers:{Accept:'application/json'}
+    });
+    if(!response.ok){
+      const error=Error('Walking service returned HTTP '+response.status+'.');
+      error.serviceUnavailable=response.status===429||response.status>=500||response.status===403;
+      throw error;
+    }
+    data=await response.json();
+  }catch(error){
+    checkAbort(signal);
+    if(timedOut){const timeout=Error('The public walking service timed out.');timeout.serviceUnavailable=true;throw timeout;}
+    if(error instanceof TypeError)error.serviceUnavailable=true;
+    throw error;
+  }finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);}
+  checkAbort(signal);
+  const trip=data.trip,summary=trip?.summary;
+  if(!trip?.legs?.length||!Number.isFinite(summary?.length)||summary.length<0||!Number.isFinite(summary.time)||summary.time<0)throw Error('No usable pedestrian route was returned.');
+  if(summary.has_ferry||trip.legs.some(l=>l.summary?.has_ferry||l.maneuvers?.some(m=>m.travel_type==='ferry')))throw Error('This connection requires a ferry, not just walking.');
+  const geometry=trip.legs.flatMap(leg=>decodePolyline(leg.shape));
+  const startGap=birdDistance(from,{lat:geometry[0][0],lon:geometry[0][1]})*1000;
+  const end=geometry[geometry.length-1];
+  const endGap=birdDistance(to,{lat:end[0],lon:end[1]})*1000;
+  if(startGap>MAX_SNAP_METERS||endGap>MAX_SNAP_METERS)throw Error('The mapped path is too far from the selected building or MRT exit.');
+  const route={km:summary.length,mins:summary.time/60,geometry,startGap,endGap};
+  if(routeCache.size>=200)routeCache.delete(routeCache.keys().next().value);
+  routeCache.set(key,route);return route;
+}
+function walkingLink(from,to){
+  return 'https://www.google.com/maps/dir/?api=1&origin='+from.lat+','+from.lon+'&destination='+to.lat+','+to.lon+'&travelmode=walking';
+}
+function metres(km){return Math.round(km*1000).toLocaleString('en-SG')+' m';}
+function minutes(mins){return mins<1?'Less than 1 min':Math.ceil(mins)+' min';}
+function writeWalk(content,compact){
+  walkResult.innerHTML=content;mapMessage.innerHTML=compact||content;
+}
+function showWalkHelp(message=defaultWalkHelp){
+  writeWalk('<p class="walk-copy">'+esc(message)+'</p>',
+    '<b>Click your building. Get your walking route.</b><p class="walk-copy">'+esc(message)+'</p><button type="button" data-start-pick>Click my property</button>');
+}
+function ensureStreetView(){
+  document.getElementById('roadmap').checked=true;
+  if(!map.hasLayer(streetTiles))streetTiles.addTo(map);
+  document.getElementById('mrt').checked=true;
+}
+function enterWalkingView(){
+  if(!savedOverview)savedOverview=Object.fromEntries(['lease','freehold','areas','mrt'].map(id=>[id,document.getElementById(id).checked]));
+  // Remove illustrative points and opaque boundaries to expose real buildings.
+  for(const id of ['lease','freehold','areas'])document.getElementById(id).checked=false;
+  ensureStreetView();updateLayers();
+}
+function stopPicking(){
+  pickingProperty=false;pickBanner.hidden=true;
+  map.getContainer().classList.remove('picking-property');
+  document.getElementById('pickProperty').textContent='Click my property';
+  document.getElementById('pickProperty').setAttribute('aria-pressed','false');
+}
+function abortWalking(){
+  routeSequence++;
+  if(activeRoute){activeRoute.abort();activeRoute=null;}
+  walkResult.setAttribute('aria-busy','false');
+}
+function resetWalking(restore=true){
+  abortWalking();stopPicking();walkOverlay.clearLayers();selectedOrigin=null;
+  propertyLabel='My selected property';
+  if(restore&&savedOverview){
+    for(const [id,value] of Object.entries(savedOverview))document.getElementById(id).checked=value;
+    savedOverview=null;updateLayers();
+  }
+  showWalkHelp();
+}
+function beginPropertyPick(label){
+  if(!exitPoints.length){showWalkHelp('MRT exit data is not ready. Check the data-loading message below and try again after it loads.');return;}
+  abortWalking();stopPicking();walkOverlay.clearLayers();selectedOrigin=null;map.closePopup();
+  propertyLabel=label||'My selected property';
+  enterWalkingView();pickingProperty=true;
+  pickBanner.hidden=false;
+  document.getElementById('pickHint').textContent='Click your building entrance on the street map. Walking routes will be calculated automatically.';
+  map.getContainer().classList.add('picking-property');
+  document.getElementById('pickProperty').textContent='Click your building on the map';
+  document.getElementById('pickProperty').setAttribute('aria-pressed','true');
+  writeWalk('<b>Select your building entrance</b><p class="walk-copy">'+(label?'For '+esc(label)+'. ':'')+'Pan, zoom or use the address search to find the actual building. Click once to calculate. The coloured transaction dots are hidden because their locations are illustrative.</p>',
+    '<b>Where is your property?</b><p class="walk-copy">Zoom in, then click the building entrance. No coordinates to type.</p><button type="button" class="secondary" data-cancel-walk>Cancel selection</button>');
+  if(window.matchMedia('(max-width:780px)').matches)map.getContainer().scrollIntoView({behavior:'smooth',block:'center'});
+  map.invalidateSize();
+}
+function homeMarker(from,label){
+  const icon=L.divIcon({className:'home-map-icon',iconSize:[34,40],iconAnchor:[17,39],popupAnchor:[0,-35],
+    html:'<svg viewBox="0 0 34 40" aria-hidden="true"><path d="M17 39C13 32 1 25 1 17a16 16 0 0 1 32 0c0 8-12 15-16 22Z" fill="#1267d5" stroke="white" stroke-width="2"/><path d="m9 17 8-7 8 7v8H9Z" fill="white"/><path d="M15 25v-7h4v7" fill="#1267d5"/></svg>'});
+  const marker=L.marker([from.lat,from.lon],{icon,draggable:true,title:'Your selected building - drag to adjust',zIndexOffset:1000});
+  marker.bindTooltip(esc(label)+' - drag to adjust').addTo(walkOverlay);
+  marker.on('dragstart',()=>{abortWalking();writeWalk('<b>Move the pin to your building entrance</b><p class="walk-copy">Release the pin to recalculate automatically.</p>');});
+  marker.on('dragend',()=>{const p=marker.getLatLng();calculateWalking({lat:p.lat,lon:p.lng},label);});
+  return marker;
+}
+function drawWalkingRoute(from,best,label){
+  walkOverlay.clearLayers();
+  const line=L.polyline(best.route.geometry,{color:'#1267d5',weight:5,opacity:.95}).addTo(walkOverlay);
+  homeMarker(from,label);
+  const exit=L.circleMarker([best.p.lat,best.p.lon],{radius:12,color:'#1267d5',weight:3,fillOpacity:.08});
+  exit.bindTooltip(esc(best.p.name)+' - Exit '+esc(best.p.code)).addTo(walkOverlay);
+  const first=best.route.geometry[0],last=best.route.geometry[best.route.geometry.length-1];
+  for(const [point,snapped,gap] of [[[from.lat,from.lon],first,best.route.startGap],[[best.p.lat,best.p.lon],last,best.route.endGap]]){
+    if(gap>3)L.polyline([point,snapped],{color:'#758395',weight:2,dashArray:'4 5'}).bindTooltip('Unrouted connection - not included in walking distance').addTo(walkOverlay);
+  }
+  const bounds=line.getBounds().extend([from.lat,from.lon]).extend([best.p.lat,best.p.lon]);
+  map.fitBounds(bounds,{paddingTopLeft:[35,70],paddingBottomRight:[35,Math.min(220,map.getSize().y*.4)],maxZoom:18});
+}
+async function calculateWalking(from,label='My selected property'){
+  if(!singaporePoint(from.lat,from.lon)){showWalkHelp('Please choose a building within Singapore.');return;}
+  if(!exitPoints.length){showWalkHelp('MRT exit data is not loaded yet.');return;}
+  abortWalking();stopPicking();enterWalkingView();map.closePopup();
+  selectedOrigin=from;propertyLabel=label;walkOverlay.clearLayers();homeMarker(from,label);
+  const controller=new AbortController();activeRoute=controller;
+  const sequence=routeSequence,signal=controller.signal;
+  const candidates=[...new Map(exitPoints.filter(p=>singaporePoint(p.lat,p.lon)&&!/\bLRT\b/i.test(p.name)).map(p=>[p.lat+','+p.lon+'|'+p.name+'|'+p.code,p])).values()]
+    .map(p=>({...p,air:birdDistance(from,p)})).sort((a,b)=>a.air-b.air).slice(0,MAX_NEARBY_EXITS);
+  const results=[];let attempted=0,serviceIssue='';
+  walkResult.setAttribute('aria-busy','true');
+  try{
+    for(const p of candidates){
+      checkAbort(signal);attempted++;
+      writeWalk('<span class="route-eyebrow">Your selected property</span><b>'+esc(label)+'</b><p class="walk-copy">Comparing walking route '+attempted+' of '+candidates.length+' nearby MRT exits...</p><progress max="'+candidates.length+'" value="'+(attempted-1)+'"></progress><button class="secondary" type="button" data-cancel-walk>Cancel</button>');
+      try{results.push({p,route:await pedestrianRoute(from,p,signal)});}
+      catch(error){
+        checkAbort(signal);
+        console.warn('MRT walking route unavailable:',p.name,p.code,error.message);
+        if(error.serviceUnavailable){serviceIssue=error.message;break;}
+      }
+    }
+    checkAbort(signal);if(sequence!==routeSequence)return;
+    if(!results.length)throw Error(serviceIssue||'No usable walking routes were returned for these exits.');
+    results.sort((a,b)=>a.route.km-b.route.km);
+    const best=results[0],url=walkingLink(from,best.p);
+    const gaps=best.route.startGap>3||best.route.endGap>3;
+    const caveat='Shortest returned walking route among '+results.length+' usable results from '+attempted+' of '+candidates.length+' nearby exits checked. Candidates are selected by straight-line proximity; this is not a check of every MRT exit in Singapore.';
+    const snapNote=gaps?' The dashed grey connections to mapped paths are not included: about '+Math.round(best.route.startGap)+' m at the start and '+Math.round(best.route.endGap)+' m at the exit.':'';
+    const full='<span class="route-eyebrow">Nearest checked MRT exit</span><h3 class="route-station">'+esc(best.p.name)+'</h3><div class="exit-label">Exit '+esc(best.p.code)+'</div><div class="route-metrics"><div><b>'+metres(best.route.km)+'</b><span>Estimated mapped walk</span></div><div><b>'+minutes(best.route.mins)+'</b><span>Estimated walking time</span></div></div><p class="walk-copy">From: '+esc(label)+'</p><a class="route-link" href="'+url+'" target="_blank" rel="noopener noreferrer">Check walking directions in Google Maps</a><details class="route-details"><summary>How this estimate is calculated</summary><p>'+esc(caveat)+'</p><p>'+esc('Uses mapped pedestrian paths. The starting point is where you clicked, not a coloured property dot.'+snapNote+' Check building gates and exit access before travelling.')+'</p>'+(serviceIssue?'<p>'+esc('Some requests could not finish: '+serviceIssue)+'</p>':'')+(results.length>1?'<p><b>Other returned routes</b><br>'+results.slice(1).map(r=>esc(r.p.name)+' / Exit '+esc(r.p.code)+': '+metres(r.route.km)).join('<br>')+'</p>':'')+'</details>';
+    const compact='<span class="route-eyebrow">Nearest checked MRT exit</span><b class="map-station">'+esc(best.p.name)+' - Exit '+esc(best.p.code)+'</b><div class="map-metrics">'+metres(best.route.km)+' <span>walking</span> &middot; '+minutes(best.route.mins)+'</div><p class="walk-copy">Best of '+results.length+' usable routes among '+attempted+' nearby exits checked.'+(gaps?' Dashed connections are not included.':'')+'</p><div class="route-actions"><button type="button" data-start-pick>Choose another property</button><a href="'+url+'" target="_blank" rel="noopener noreferrer">Directions</a></div>';
+    writeWalk(full,compact);drawWalkingRoute(from,best,label);
+  }catch(error){
+    if(signal.aborted||sequence!==routeSequence)return;
+    const fallback=candidates[0];
+    let message='<b>Walking distance unavailable</b><p class="walk-copy">'+esc(error.message)+' No distance has been guessed.</p><p class="walk-copy">Try moving your pin to a public building entrance, or try again later. No API key is requested.</p>';
+    if(fallback)message+='<a class="route-link" href="'+walkingLink(from,fallback)+'" target="_blank" rel="noopener noreferrer">Open Google Maps walking directions</a><p class="walk-copy">Fallback: '+esc(fallback.name)+' - Exit '+esc(fallback.code)+'. This exit is nearest in a straight line, not confirmed as the nearest walk.</p>';
+    message+='<button class="secondary" type="button" data-retry-walk>Retry walking calculation</button>';
+    writeWalk(message);
+  }finally{
+    if(sequence===routeSequence){activeRoute=null;walkResult.setAttribute('aria-busy','false');}
+  }
+}
+map.on('click',event=>{
+  if(!pickingProperty)return;
+  if(!singaporePoint(event.latlng.lat,event.latlng.lng)){
+    document.getElementById('pickHint').textContent='Please choose a building within Singapore.';return;
+  }
+  if(map.getZoom()<16){
+    map.flyTo(event.latlng,17,{duration:.7});
+    document.getElementById('pickHint').textContent='Zoomed in. Now click your building entrance to calculate the walking distance.';return;
+  }
+  calculateWalking({lat:event.latlng.lat,lon:event.latlng.lng},propertyLabel);
+});
+map.on('popupopen',event=>{
+  const popup=event.popup.getElement();if(!popup)return;
+  const pick=popup.querySelector('.pick-building');
+  if(pick)pick.onclick=()=>beginPropertyPick(event.popup._source?.propertyRecord?.project||undefined);
+});
+document.getElementById('pickProperty').addEventListener('click',()=>beginPropertyPick());
+document.getElementById('clearWalk').addEventListener('click',()=>resetWalking());
+document.addEventListener('click',event=>{
+  const button=event.target.closest('button');if(!button)return;
+  if(button.hasAttribute('data-cancel-walk')){event.preventDefault();resetWalking();}
+  else if(button.hasAttribute('data-start-pick')){event.preventDefault();beginPropertyPick();}
+  else if(button.hasAttribute('data-retry-walk')&&selectedOrigin){event.preventDefault();calculateWalking({...selectedOrigin},propertyLabel);}
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&(pickingProperty||activeRoute))resetWalking();
+});
+showWalkHelp();
+
+init();
+</script></body></html>
+"""
+
+# ============================================================
+# SAVE AND DISPLAY THE WEBSITE DIRECTLY IN GOOGLE COLAB
+# ============================================================
+
+output_folder = Path("/content") if Path("/content").is_dir() else Path.cwd()
+website_path = output_folder / "index.html"
+website_path.write_text(WEBSITE_HTML, encoding="utf-8")
+
+print(f"Website saved to: {website_path}")
+print("Search an address, choose Click my property, then click the building entrance.")
+print("No latitude or longitude needs to be entered.")
+print("This is a notebook preview, not a publicly hosted website.")
+
+iframe = (
+    '<iframe title="Singapore Property and MRT Explorer" '
+    'width="100%" height="900" '
+    'style="border:0;border-radius:12px;" '
+    'sandbox="allow-scripts allow-same-origin allow-popups '
+    'allow-popups-to-escape-sandbox" '
+    f'srcdoc="{escape(WEBSITE_HTML, quote=True)}"></iframe>'
+)
+display(HTML(iframe))
+
+if DOWNLOAD_HTML:
+    from google.colab import files
+    files.download(str(website_path))
